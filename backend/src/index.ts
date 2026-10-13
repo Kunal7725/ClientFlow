@@ -1,10 +1,18 @@
-import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import express from "express";
 import ConnectedDataBase from "./config/database";
-import testRoutes from "./routes/testRoutes";
-import healthRouter from "./routes/health";
 import authRoutes from "./routes/authRoutes";
+import testRoutes from "./routes/testRoutes";
+import userRoutes from "./routes/userRoutes";
+import clientRoutes from "./routes/clientRoutes";
+import projectRoutes from "./routes/projectRoutes";
+import taskRoutes from "./routes/taskRoutes";
+
+
+
+
+
 
 dotenv.config();
 
@@ -20,9 +28,26 @@ app.use(
 
 app.use(express.json());
 
-app.use("/api/health", healthRouter);
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "ClientFlow API is running",
+  });
+});
+
+
+
+
+
 app.use("/api/test", testRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/client", clientRoutes);
+app.use("/api/project", projectRoutes);
+app.use("/api/task", taskRoutes);
+
+
+
 
 const startServer = async (): Promise<void> => {
   await ConnectedDataBase();
