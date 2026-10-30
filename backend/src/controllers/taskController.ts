@@ -1,11 +1,15 @@
 import { Response } from "express";
 import mongoose from "mongoose";
-import Task, { TaskPriority, TaskStatus } from "../models/Task";
+import Task, {
+    ITask,
+    TaskPriority,
+    TaskStatus,
+} from "../models/Task";
 import Project from "../models/Project";
 import User from "../models/User";
 import { AuthenticatedRequest } from "../middleware/authMiddleware";
 
-const isValidObjectId = (id: string | string[]): boolean => {
+const isValidId = (id: string | string[]): boolean => {
     if (Array.isArray(id)) return false;
     return mongoose.Types.ObjectId.isValid(id);
 };
@@ -17,6 +21,7 @@ export const createTask = async (
 ) => {
     try {
         const organizationId = req.user?.organizationId;
+
         const {
             projectId,
             assignedTo,
@@ -30,18 +35,18 @@ export const createTask = async (
         if (!organizationId) {
             return res.status(401).json({
                 success: false,
-                message: "Organization not found in authentication token",
+                message: "Organization not found",
             });
         }
 
-        if (!projectId || !isValidObjectId(projectId)) {
+        if (!projectId || !isValidId(projectId)) {
             return res.status(400).json({
                 success: false,
                 message: "A valid projectId is required",
             });
         }
 
-        if (!title || typeof title !== "string" || !title.trim()) {
+        if (typeof title !== "string" || !title.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Task title is required",
@@ -76,7 +81,7 @@ export const createTask = async (
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid dueDate. Use a valid date string",
+                message: "Invalid due date",
             });
         }
 
@@ -95,11 +100,11 @@ export const createTask = async (
         if (assignedTo !== undefined && assignedTo !== null && assignedTo !== "") {
             if (
                 typeof assignedTo !== "string" ||
-                !isValidObjectId(assignedTo)
+                !isValidId(assignedTo)
             ) {
                 return res.status(400).json({
                     success: false,
-                    message: "Invalid assignedTo user ID",
+                    message: "Invalid assignedTo ID",
                 });
             }
 
@@ -156,22 +161,20 @@ export const getTasks = async (
         if (!organizationId) {
             return res.status(401).json({
                 success: false,
-                message: "Organization not found in authentication token",
+                message: "Organization not found",
             });
         }
 
-        const { projectId: _pId, status: _st, priority: _pr, assignedTo: _at } = req.query;
-        const projectId = _pId ? String(_pId) : undefined;
-        const status = _st ? String(_st) : undefined;
-        const priority = _pr ? String(_pr) : undefined;
-        const assignedTo = _at ? String(_at) : undefined;
+        const { projectId, status, priority, assignedTo } = req.query;
 
-        const filter: Record<string, unknown> = { organizationId };
+        const filter: Record<string, unknown> = {
+            organizationId,
+        };
 
         if (projectId) {
             if (
                 typeof projectId !== "string" ||
-                !isValidObjectId(projectId as string)
+                !isValidId(projectId)
             ) {
                 return res.status(400).json({
                     success: false,
@@ -179,7 +182,7 @@ export const getTasks = async (
                 });
             }
 
-            filter.projectId = projectId;
+            filter.projectId = new mongoose.Types.ObjectId(projectId);
         }
 
         if (status) {
@@ -193,7 +196,7 @@ export const getTasks = async (
                 });
             }
 
-            filter.status = status;
+            filter.status = status as TaskStatus;
         }
 
         if (priority) {
@@ -207,21 +210,21 @@ export const getTasks = async (
                 });
             }
 
-            filter.priority = priority;
+            filter.priority = priority as TaskPriority;
         }
 
         if (assignedTo) {
             if (
                 typeof assignedTo !== "string" ||
-                !isValidObjectId(assignedTo as string)
+                !isValidId(assignedTo)
             ) {
                 return res.status(400).json({
                     success: false,
-                    message: "Invalid assignedTo user ID",
+                    message: "Invalid assignedTo ID",
                 });
             }
 
-            filter.assignedTo = assignedTo as string;
+            filter.assignedTo = new mongoose.Types.ObjectId(assignedTo);
         }
 
         const tasks = await Task.find(filter)
@@ -256,11 +259,11 @@ export const getTaskById = async (
         if (!organizationId) {
             return res.status(401).json({
                 success: false,
-                message: "Organization not found in authentication token",
+                message: "Organization not found",
             });
         }
 
-        if (!id || !isValidObjectId(id)) {
+        if (!id || !isValidId(id)) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid task ID",
@@ -303,24 +306,15 @@ export const updateTask = async (
     try {
         const organizationId = req.user?.organizationId;
         const { id } = req.params;
-        const {
-            projectId,
-            assignedTo,
-            title,
-            description,
-            status,
-            priority,
-            dueDate,
-        } = req.body;
 
         if (!organizationId) {
             return res.status(401).json({
                 success: false,
-                message: "Organization not found in authentication token",
+                message: "Organization not found",
             });
         }
 
-        if (!id || !isValidObjectId(id)) {
+        if (!id || !isValidId(id)) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid task ID",
@@ -339,10 +333,20 @@ export const updateTask = async (
             });
         }
 
+        const {
+            projectId,
+            assignedTo,
+            title,
+            description,
+            status,
+            priority,
+            dueDate,
+        } = req.body;
+
         if (projectId !== undefined) {
             if (
                 typeof projectId !== "string" ||
-                !isValidObjectId(projectId)
+                !isValidId(projectId)
             ) {
                 return res.status(400).json({
                     success: false,
@@ -371,11 +375,11 @@ export const updateTask = async (
             } else {
                 if (
                     typeof assignedTo !== "string" ||
-                    !isValidObjectId(assignedTo)
+                    !isValidId(assignedTo)
                 ) {
                     return res.status(400).json({
                         success: false,
-                        message: "Invalid assignedTo user ID",
+                        message: "Invalid assignedTo ID",
                     });
                 }
 
@@ -461,7 +465,7 @@ export const updateTask = async (
                 ) {
                     return res.status(400).json({
                         success: false,
-                        message: "Invalid dueDate. Use a valid date string",
+                        message: "Invalid due date",
                     });
                 }
 
@@ -498,11 +502,11 @@ export const deleteTask = async (
         if (!organizationId) {
             return res.status(401).json({
                 success: false,
-                message: "Organization not found in authentication token",
+                message: "Organization not found",
             });
         }
 
-        if (!id || !isValidObjectId(id)) {
+        if (!id || !isValidId(id)) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid task ID",
